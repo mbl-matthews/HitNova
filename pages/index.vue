@@ -4,6 +4,7 @@
     <v-row>
       <v-col justify="center">
         <v-btn icon="mdi-qrcode" @click="qrcodeClick"/>
+        <v-btn icon="mdi-edit" @click="changeStuff"/>
       </v-col>
     </v-row>
     <v-row>
@@ -24,8 +25,15 @@ import {
   type CapacitorBarcodeScannerScanResult,
   CapacitorBarcodeScannerTypeHint,
 } from "@capacitor/barcode-scanner";
+import { ref } from "vue";
 
-  let qrCodeResult: String = "unscanned"
+  const qrCodeResult = ref<string>("unscanned")
+  const toggle = ref<string>(true)
+
+  function changeStuff(event: Event) {
+    qrCodeResult.value = toggle.value.toString()
+    toggle.value = !(toggle.value)
+  }
 
   async function qrcodeClick(event: Event) {
     let result: CapacitorBarcodeScannerScanResult = await CapacitorBarcodeScanner.scanBarcode({
@@ -33,6 +41,6 @@ import {
           cameraDirection: CapacitorBarcodeScannerCameraDirection.BACK,
           scanOrientation: CapacitorBarcodeScannerScanOrientation.PORTRAIT,
         })
-    qrCodeResult = result.ScanResult
+    qrCodeResult.value = result.ScanResult
   }
 </script>
