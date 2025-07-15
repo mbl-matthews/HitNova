@@ -1,43 +1,37 @@
 
 <template>
+  <v-overlay
+      :model-value="authorizing"
+      class="align-center justify-center"
+  >
+    <v-progress-circular
+        color="green-accent-3"
+        size="64"
+        indeterminate
+    ></v-progress-circular>
+  </v-overlay>
   <v-container>
     <v-row>
-      <v-col justify="center">
-        <v-btn icon="mdi-qrcode" @click="qrcodeClick"/>
-      </v-col>
-    </v-row>
-    <v-row>
-      <v-col justify="center">
-        <div>
-          {{ qrCodeResult }}
+      <v-col>
+        <div class="text-center">
+          <h1>HitNova</h1>
         </div>
       </v-col>
     </v-row>
     <v-row>
       <v-col>
-        <v-btn icon="mdi-spotify" @click="spotifyLogin"/>
+        <v-btn v-if="token == null" class="bg-green-accent-3" block append-icon="mdi-spotify" @click="spotifyLogin">Authentifizieren</v-btn>
+        <v-btn v-else class="bg-green-accent-3" outlined block append-icon="mdi-check-circle">Authentifiziert</v-btn>
       </v-col>
     </v-row>
     <v-row>
-      <v-col>
-        <v-progress-circular v-if="authorizing" indeterminate :size="50"></v-progress-circular>
-      </v-col>
-    </v-row>
-    <v-row>
-      <v-col>
-        Access Token: {{ token }}
-      </v-col>
-    </v-row>
-    <v-row>
-      <v-col>
-        <div v-if="token != null">
-          display name: {{ displayName }}
-        </div>
-      </v-col>
-    </v-row>
-    <v-row>
-      <v-col>
-        <v-btn icon="mdi-play-circle" @click="playTrackOfHitster"/>
+      <v-col class="text-center">
+        <v-icon-btn
+            icon="mdi-qrcode"
+            size="x-large"
+            variant="tonal"
+            v-ripple
+        />
       </v-col>
     </v-row>
   </v-container>
