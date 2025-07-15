@@ -1,7 +1,9 @@
 import type {URLOpenListenerEvent} from "@capacitor/app"
 import {App} from "@capacitor/app";
 import {FetchError} from "ofetch";
-import type {SpotifyApiToken, SpotifyResponse} from "~/composables/SpotifyTypes";
+import type {SpotifyApiToken, SpotifyResponse} from "~/types/SpotifyTypes";
+import {CODE_VERIFIER, SPOTIFY_TOKEN, CODE_PARAM, AUTHORIZING} from "~/constants/Constants";
+import {spotifyConfig} from "~/config/SpotifyConfig";
 
 // TODO remove and or refactor console logging
 export default defineNuxtPlugin(() => {
@@ -14,21 +16,21 @@ export default defineNuxtPlugin(() => {
             if (slug) {
                 console.debug("AppLink working. Redirected.")
                 const urlobj = new URL(url);
-                const code = urlobj.searchParams.get('code');
+                const code = urlobj.searchParams.get(CODE_PARAM);
                 console.debug("spotify code")
                 console.debug(code)
                 // TODO make string a importable const
-                const codeVerifier = await useState("code_verifier").value
+                const codeVerifier = await useState(CODE_VERIFIER).value
                 console.debug("code verifier:", codeVerifier)
                 console.debug("Requesting spotify access token")
                 const spotifyApiToken = await requestSpotifyAccessToken(code, codeVerifier)
                 console.debug("Fetched Spotify access token!")
                 console.debug(JSON.stringify(spotifyApiToken))
-                useState<SpotifyApiToken>("spotifyToken").value = spotifyApiToken
+                useState<SpotifyApiToken>(SPOTIFY_TOKEN).value = spotifyApiToken
             } else {
                 console.error("Unknown app link path")
             }
-            useState("authorizing").value = false
+            useState(AUTHORIZING).value = false
         });
     })
 })
@@ -36,8 +38,7 @@ export default defineNuxtPlugin(() => {
 async function requestSpotifyAccessToken(code: string, verifier: string): SpotifyApiToken {
     const url = "https://accounts.spotify.com/api/token";
     // TODO make both properyl configurable
-    const clientId = config.spotifyClientId
-    const redirectUri = config.spotifyRedirect
+
     let response: SpotifyResponse
     try {
         response = await $fetch<SpotifyResponse>(url,{
@@ -46,10 +47,10 @@ async function requestSpotifyAccessToken(code: string, verifier: string): Spotif
                 'content-type': 'application/x-www-form-urlencoded',
             },
             body: new URLSearchParams({
-                client_id: clientId,
+                client_id: spotifyConfig.clientId,
                 grant_type: 'authorization_code',
                 code: code,
-                redirect_uri: redirectUri,
+                redirect_uri: spotifyConfig.redirectUri,
                 code_verifier: verifier,
             })
         })

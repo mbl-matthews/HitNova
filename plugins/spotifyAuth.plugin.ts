@@ -1,30 +1,30 @@
 import {Browser} from '@capacitor/browser';
-import {Preferences} from '@capacitor/preferences';
+import { VERIFIER_LENGTH, CODE_VERIFIER, SPOTIFY_TOKEN } from "~/constants/Constants";
+import {spotifyConfig} from "~/config/SpotifyConfig";
+import type { SpotifyApiToken } from "~/types/SpotifyTypes";
 
 export default defineNuxtPlugin((nuxtApp) => {
-    useState<SpotifyApiToken>("spotifyToken", () => null)
+    useState<SpotifyApiToken>(SPOTIFY_TOKEN, () => null)
 
-    // require('@dotenvx/dotenvx').config()
-    const config = useRuntimeConfig()
+    console.log(JSON.stringify(spotifyConfig))
 
     return {
         provide: {
             authenticateSpotify: async () => {
-                const codeVerifier = generateCodeVerifierString(64)
+                const codeVerifier = generateCodeVerifierString(VERIFIER_LENGTH)
                 const hashed = await sha256(codeVerifier)
                 const codeChallenge = base64encode(hashed)
 
-                // TODO make both properyl configurable
-                const clientId = config.spotifyClientId
-                const redirectUri = config.spotifyRedirect
-
-                const scope = 'user-read-private user-read-email';
+                const scope = 'user-read-private user-read-email user-modify-playback-state';
                 const authUrl = new URL("https://accounts.spotify.com/authorize")
 
                 console.debug("generated verifier:")
                 console.debug(codeVerifier)
-                useState("code_verifier", () => null)
-                useState("code_verifier").value = codeVerifier
+                useState(CODE_VERIFIER, () => null)
+                useState(CODE_VERIFIER).value = codeVerifier
+
+                const clientId = spotifyConfig.clientId
+                const redirectUri = spotifyConfig.redirectUri
 
                 const params = {
                     response_type: 'code',
@@ -34,7 +34,8 @@ export default defineNuxtPlugin((nuxtApp) => {
                     code_challenge: codeChallenge,
                     redirect_uri: redirectUri,
                 }
-                
+
+                console.debug(JSON.stringify(params))
 
                 authUrl.search = new URLSearchParams(params).toString();
                 await Browser.open({

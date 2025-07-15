@@ -35,6 +35,11 @@
         </div>
       </v-col>
     </v-row>
+    <v-row>
+      <v-col>
+        <v-btn icon="mdi-play-circle" @click="playTrackOfHitster"/>
+      </v-col>
+    </v-row>
   </v-container>
 </template>
 
@@ -47,12 +52,15 @@ import {
   CapacitorBarcodeScannerTypeHint,
 } from "@capacitor/barcode-scanner";
 import { ref } from "vue";
+import { SPOTIFY_TOKEN, AUTHORIZING } from "~/constants/Constants";
+import type { SpotifyApiToken } from "~/types/SpotifyTypes";
+import {FetchError} from "ofetch";
 
-  const { $authenticateSpotify } = useNuxtApp()
+const { $authenticateSpotify } = useNuxtApp()
   const qrCodeResult = ref<string>("unscanned")
   const toggle = ref<string>(true)
-  const token = useState("spotifyToken")
-  const authorizing = useState<boolean>("authorizing")
+  const token = useState(SPOTIFY_TOKEN)
+  const authorizing = useState<boolean>(AUTHORIZING)
   const displayName = ref("dunno")
 
   async function qrcodeClick(event: Event) {
@@ -76,7 +84,7 @@ import { ref } from "vue";
   }
 
   async function userInfo(event: Event) {
-    let accessToken = useState("spotifyToken").value as SpotifyApiToken
+    let accessToken = useState<SpotifyApiToken>(SPOTIFY_TOKEN).value
 
     const response = await $fetch<ProfileResponse>('https://api.spotify.com/v1/me', {
       headers: {
@@ -85,6 +93,40 @@ import { ref } from "vue";
     });
 
     displayName.value = response.display_name
+  }
+
+  async function playTrackOfHitster(event: Event) {
+    const accessToken = useState<SpotifyApiToken>(SPOTIFY_TOKEN).value
+    const response = await $fetch("https://api.spotify.com/v1/me/player/play", {
+      method: "PUT",
+      headers: {
+        Authorization: "Bearer " + accessToken.accessToken
+      },
+      body: {
+        context_uri: "spotify:playlist:26zIHVncgI9HmHlgYWwnDi",
+        offset: {
+          position: 5
+        },
+      }
+    })
+  }
+
+  async function playNuesse() {
+    const accessToken = useState<SpotifyApiToken>(SPOTIFY_TOKEN).value
+
+    try {
+      const response = await $fetch("https://api.spotify.com/v1/me/player/play", {
+        method: "PUT",
+        headers: {
+          Authorization: "Bearer " + accessToken.accessToken
+        },
+        body: {
+          uris: ["spotify:track:3Bw7guLtln9966ss6lmLkh"],
+        }
+      })
+    } catch (e: FetchError) {
+      console.debug(JSON.stringify(e.response))
+    }
   }
 
 interface ProfileResponse {

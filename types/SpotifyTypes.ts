@@ -1,9 +1,9 @@
-export interface SpotifyApiToken {
+interface SpotifyApiToken {
     accessToken: string,
     refreshToken: string,
 }
 
-export interface SpotifyResponse {
+interface SpotifyResponse {
     access_token: string,
     token_type: string,
     scope: string,
@@ -11,3 +11,7 @@ export interface SpotifyResponse {
     refresh_token: string,
 }
 
+export {
+    SpotifyApiToken,
+    SpotifyResponse
+}
