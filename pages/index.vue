@@ -1,7 +1,7 @@
 
 <template>
   <v-overlay
-      :model-value="authorizing"
+      :model-value="authorizing || fetchingSongInfo"
       class="align-center justify-center"
   >
     <v-progress-circular
@@ -10,6 +10,91 @@
         indeterminate
     ></v-progress-circular>
   </v-overlay>
+  <v-dialog
+      v-model="configDialog"
+      scrollable
+      persistent
+  >
+    <v-card
+        prepend-icon="mdi-cog"
+        title="Einstellungen"
+    >
+      <v-divider />
+      <v-container class="mb-n4 mt-2">
+        <v-row no-gutters class="mb-2">
+          <v-col>
+            Snippet
+          </v-col>
+        </v-row>
+        <v-row no-gutters>
+          <v-col>
+            <v-number-input
+                :reverse="false"
+                controlVariant="split"
+                label="Snippetlänge in Sek."
+                :hideInput="false"
+                inset
+                v-model="settings.snippet.length"
+            />
+          </v-col>
+        </v-row>
+      </v-container>
+      <v-divider />
+      <v-container class="mb-n4 mt-2">
+        <v-row no-gutters class="mb-2">
+          <v-col>
+            Zufälliger Startpunkt
+          </v-col>
+        </v-row>
+        <v-row no-gutters>
+          <v-col cols="5">
+            <v-checkbox
+              label="Min. Start"
+              v-model="settings.random.minStartActive"
+            />
+          </v-col>
+          <v-col cols="7">
+            <v-number-input
+                :disabled="!settings.random.minStartActive"
+                :reverse="false"
+                controlVariant="split"
+                :hideInput="false"
+                inset
+                v-model="settings.random.minStartNumber"
+            />
+          </v-col>
+        </v-row>
+        <v-row no-gutters>
+          <v-col cols="5">
+            <v-checkbox
+                label="Min. Start"
+                v-model="settings.random.maxStartActive"
+            />
+          </v-col>
+          <v-col cols="7">
+            <v-number-input
+                :disabled="!settings.random.maxStartActive"
+                :reverse="false"
+                controlVariant="split"
+                :hideInput="false"
+                inset
+                v-model="settings.random.maxStartNumber"
+            />
+          </v-col>
+        </v-row>
+      </v-container>
+      <v-divider />
+
+      <template v-slot:actions>
+        <v-btn
+            class="ms-auto"
+            @click="configDialog = false"
+        >
+          Schließen
+        </v-btn>
+      </template>
+    </v-card>
+  </v-dialog>
   <v-container>
     <v-row>
       <v-col>
@@ -25,13 +110,49 @@
       </v-col>
     </v-row>
     <v-row>
+      <v-col>
+        <v-btn class="bg-grey-darken-3" block @click="configDialog = true">
+          Einstellungen
+        </v-btn>
+      </v-col>
+    </v-row>
+    <v-row class="my-10">
       <v-col class="text-center">
-        <v-icon-btn
+        <v-btn
+          :disabled="token == null"
+          icon
+          size="250"
+          :elevation="token == null ? 5 : 24"
+          @click="scanQr"
+        >
+          <v-icon
             icon="mdi-qrcode"
-            size="x-large"
-            variant="tonal"
-            v-ripple
-        />
+            size="200"
+          />
+        </v-btn>
+      </v-col>
+    </v-row>
+    <v-row>
+      <v-col>
+        <v-card elevation="0" border>
+          <v-card-text>
+            <v-row>
+              <v-col cols="9" align-self="center" class="text-center">
+                <div v-if="loadedSong == null">Kein Song gescannt!</div>
+                <div v-else></div>
+              </v-col>
+              <v-col cols="3">
+                <v-btn
+                  elevation="5"
+                  border
+                  :disabled="loadedSong == null"
+                  icon="mdi-play"
+                  size="large"
+                ></v-btn>
+              </v-col>
+            </v-row>
+          </v-card-text>
+        </v-card>
       </v-col>
     </v-row>
   </v-container>
@@ -49,28 +170,69 @@ import { ref } from "vue";
 import { SPOTIFY_TOKEN, AUTHORIZING } from "~/constants/Constants";
 import type { SpotifyApiToken } from "~/types/SpotifyTypes";
 import {FetchError} from "ofetch";
+import type { GameSettings } from "~/types/GameSettings";
 
 const { $authenticateSpotify } = useNuxtApp()
-  const qrCodeResult = ref<string>("unscanned")
+  const loadedSong = ref(null)
+  const qrCodeResult = ref<string>(null)
   const toggle = ref<string>(true)
   const token = useState(SPOTIFY_TOKEN)
   const authorizing = useState<boolean>(AUTHORIZING)
   const displayName = ref("dunno")
-
-  async function qrcodeClick(event: Event) {
-    let result: CapacitorBarcodeScannerScanResult = await CapacitorBarcodeScanner.scanBarcode({
-          hint: CapacitorBarcodeScannerTypeHint.QR_CODE,
-          cameraDirection: CapacitorBarcodeScannerCameraDirection.BACK,
-          scanOrientation: CapacitorBarcodeScannerScanOrientation.PORTRAIT,
-        })
-    qrCodeResult.value = result.ScanResult
-  }
-
-  watch(authorizing, async (n, o) => {
-    if(token.value != null) {
-      await userInfo()
-    }
+  const configDialog = ref(false)
+  const fetchingSongInfo = ref(false)
+  const settings = ref<GameSettings>({
+    snippet: {
+      length: 15
+    },
+    random: {
+      minStartActive: false,
+      minStartNumber: 30,
+      maxStartActive: false,
+      maxStartNumber: -30,
+    },
   })
+
+  async function scanQr(event: Event) {
+    const accessToken = useState<SpotifyApiToken>(SPOTIFY_TOKEN).value
+
+    fetchingSongInfo.value = true
+    try {
+      const result: CapacitorBarcodeScannerScanResult = await CapacitorBarcodeScanner.scanBarcode({
+        hint: CapacitorBarcodeScannerTypeHint.QR_CODE,
+        cameraDirection: CapacitorBarcodeScannerCameraDirection.BACK,
+        scanOrientation: CapacitorBarcodeScannerScanOrientation.PORTRAIT,
+      })
+      const token = result.ScanResult.split("www.hitstergame.com/de/").pop()
+      // const offset = parseInt(token) - 1
+      const offset = 5
+
+      // TODO use this endpoint to get track info of playlist
+      // https://developer.spotify.com/documentation/web-api/reference/get-playlist
+      // TODO make response object for playlist thing
+      // maybe try to make partial reponse, dont know if that works
+      const hitsterId = "26zIHVncgI9HmHlgYWwnDi"
+      const playlistResponse = await $fetch<PlaylistInfoResponse>(`https://api.spotify.com/v1/playlists/${hitsterId}?limit=1&offset=${offset}`, {
+        method: "GET",
+        headers: {
+          Authorization: 'Bearer ' + accessToken.accessToken
+        }
+      })
+      const trackInfoUrl = playlistResponse.tracks.items[0].track.href
+      const trackResponse = await $fetch<TrackInfoResponse>(trackInfoUrl, {
+        headers: {
+          Authorization: 'Bearer ' + accessToken.accessToken
+        }
+      })
+      console.debug(JSON.stringify(trackResponse))
+      const trackName = trackResponse.name
+      console.debug(trackName)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      fetchingSongInfo.value = false
+    }
+  }
 
   async function spotifyLogin(event: Event) {
     authorizing.value = true
@@ -122,6 +284,25 @@ const { $authenticateSpotify } = useNuxtApp()
       console.debug(JSON.stringify(e.response))
     }
   }
+
+interface TrackInfoResponse {
+  name: string,
+  duration_ms: number,
+}
+
+interface PlaylistInfoResponse {
+  description: string,
+  name: string,
+  tracks: {
+    href: string,
+    offset: number,
+    items: {
+      track: {
+        href: string,
+      }
+    }[],
+  }
+}
 
 interface ProfileResponse {
   country: string,

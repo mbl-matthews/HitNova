@@ -1,4 +1,4 @@
-import type {URLOpenListenerEvent} from "@capacitor/app"
+import type {BackButtonListenerEvent, URLOpenListenerEvent} from "@capacitor/app"
 import {App} from "@capacitor/app";
 import {FetchError} from "ofetch";
 import type {SpotifyApiToken, SpotifyResponse} from "~/types/SpotifyTypes";
@@ -19,7 +19,6 @@ export default defineNuxtPlugin(() => {
                 const code = urlobj.searchParams.get(CODE_PARAM);
                 console.debug("spotify code")
                 console.debug(code)
-                // TODO make string a importable const
                 const codeVerifier = await useState(CODE_VERIFIER).value
                 console.debug("code verifier:", codeVerifier)
                 console.debug("Requesting spotify access token")
@@ -32,12 +31,15 @@ export default defineNuxtPlugin(() => {
             }
             useState(AUTHORIZING).value = false
         });
+        await App.addListener("backButton", async function(event: BackButtonListenerEvent) {
+            await App.minimizeApp()
+        })
+
     })
 })
 
 async function requestSpotifyAccessToken(code: string, verifier: string): SpotifyApiToken {
     const url = "https://accounts.spotify.com/api/token";
-    // TODO make both properyl configurable
 
     let response: SpotifyResponse
     try {
